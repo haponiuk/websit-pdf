@@ -43,24 +43,31 @@
   <button onclick="fetchDataAndGeneratePDF()">Завантажити PDF</button>
 
   <script>
-    const AIRTABLE_URL = "https://api.airtable.com/v0/appb9kpXcjPohEBOb/tblpUFOT7x2W0fY0K";
-    const AIRTABLE_TOKEN = "patSVQeGPoRidOMV8.01e768b6b4af945b39d27490b0fc25e0657225921016d4e0963741871e8a923f";
-
-    function getQueryParam(name) {
+    const getQueryParam = (name) => {
       const params = new URLSearchParams(window.location.search);
-      return params.get(name) || 'Документ';
-    }
+      return params.get(name);
+    };
+
+    const AIRTABLE_URL = "https://api.airtable.com/v0/appb9kpXcjPohEBOb/tblpUFOT7x2W0fY0K";
 
     function blobToBase64(blob) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result); // це вже data:application/pdf;base64,...
+        reader.onloadend = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
     }
 
     async function fetchDataAndGeneratePDF() {
+      const AIRTABLE_TOKEN = getQueryParam("api_token");
+      if (!AIRTABLE_TOKEN) {
+        alert("❌ Не передано параметр 'api_token' в URL");
+        return;
+      }
+
+      const title = getQueryParam('title') || 'Документ';
+
       const response = await fetch(AIRTABLE_URL, {
         headers: {
           Authorization: `Bearer ${AIRTABLE_TOKEN}`
@@ -69,7 +76,6 @@
 
       const data = await response.json();
       const records = data.records;
-      const title = getQueryParam('title');
 
       const tableBody = [
         [
@@ -157,10 +163,9 @@
         pageMargins: [40, 80, 40, 60]
       };
 
-      // PDF → Blob → Base64 → POST to Airtable
       pdfMake.createPdf(docDefinition).getBlob(async (blob) => {
         try {
-          const base64data = await blobToBase64(blob); // вже у форматі "data:application/pdf;base64,..."
+          const base64data = await blobToBase64(blob);
 
           const baseId = "appb9kpXcjPohEBOb";
           const recordId = "rec9ynVbWxAwpnOlV";

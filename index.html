@@ -2,42 +2,155 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Генерація PDF</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <title>Генератор PDF</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #content { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; }
-    button { padding: 10px 20px; font-size: 16px; }
+    body {
+      background: #f4f7fa;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background-color: #3498db;
+      color: white;
+      font-size: 16px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
   </style>
 </head>
 <body>
-  <h1>Генерація PDF з HTML</h1>
-
-  <div id="content">
-    <h2>Це контент для PDF</h2>
-    <p>Цей текст буде додано до PDF-файлу.</p>
-    <ul>
-      <li>Пункт 1</li>
-      <li>Пункт 2</li>
-      <li>Пункт 3</li>
-    </ul>
-  </div>
-
+  <h1>Генератор PDF-звіту</h1>
   <button onclick="generatePDF()">Завантажити PDF</button>
 
   <script>
-    async function generatePDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name) || 'Документ';
+    }
 
-      // Витягуємо текст із блоку #content
-      const content = document.getElementById('content').innerText;
+    function generatePDF() {
+      const title = getQueryParam('title');
 
-      // Додаємо текст до PDF
-      doc.text(content, 10, 10);
+      const headerStyle = {
+        fillColor: '#2c3e50',
+        color: 'white',
+        bold: true,
+        fontSize: 13,
+        alignment: 'center',
+        margin: [0, 5, 0, 5]
+      };
 
-      // Завантажуємо PDF
-      doc.save('document.pdf');
+      const rowStyle = (rowIndex) => ({
+        fillColor: rowIndex % 2 === 0 ? '#ecf0f1' : null,
+        margin: [0, 4, 0, 4]
+      });
+
+      const docDefinition = {
+        content: [
+          {
+            text: title,
+            style: 'header',
+            margin: [0, 0, 0, 20]
+          },
+
+          { text: 'Перша таблиця', style: 'subheader' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', '*', '*'],
+              body: [
+                [
+                  { text: 'Колонка 1', style: 'tableHeader' },
+                  { text: 'Колонка 2', style: 'tableHeader' },
+                  { text: 'Колонка 3', style: 'tableHeader' }
+                ],
+                ...[
+                  ['Значення 1', 'Значення 2', 'Значення 3'],
+                  ['Ще одне', 'Щось тут', 'І тут'],
+                  ['Третій рядок', 'Інфо', 'Більше даних']
+                ].map((row, i) =>
+                  row.map(cell => ({ text: cell, ...rowStyle(i) }))
+                )
+              ]
+            },
+            layout: {
+              fillColor: (rowIndex) => rowIndex === 0 ? '#2c3e50' : rowIndex % 2 === 0 ? '#ecf0f1' : null,
+              textColor: (rowIndex) => rowIndex === 0 ? 'white' : 'black'
+            },
+            margin: [0, 10, 0, 20]
+          },
+
+          { text: 'Друга таблиця', style: 'subheader' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*'],
+              body: [
+                [
+                  { text: 'Назва', style: 'tableHeader' },
+                  { text: 'Значення', style: 'tableHeader' }
+                ],
+                ...[
+                  ['Вік', '37'],
+                  ['Місто', 'Київ'],
+                  ['Професія', 'Фахівець з автоматизації']
+                ].map((row, i) =>
+                  row.map(cell => ({ text: cell, ...rowStyle(i) }))
+                )
+              ]
+            },
+            layout: 'lightHorizontalLines'
+          }
+        ],
+        styles: {
+          header: {
+            fontSize: 24,
+            bold: true,
+            color: '#2c3e50',
+            alignment: 'center'
+          },
+          subheader: {
+            fontSize: 16,
+            bold: true,
+            color: '#34495e',
+            margin: [0, 10, 0, 8]
+          },
+          tableHeader: {
+            bold: true,
+            fontSize: 13,
+            color: 'white',
+            fillColor: '#2c3e50',
+            alignment: 'center'
+          }
+        },
+        defaultStyle: {
+          fontSize: 12
+        },
+        pageMargins: [40, 60, 40, 60]
+      };
+
+      pdfMake.createPdf(docDefinition).download(`${title}.pdf`);
     }
   </script>
 </body>

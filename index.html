@@ -190,14 +190,14 @@
           const result = await uploadResponse.json();
 
           if (uploadResponse.ok) {
-            alert("📎 PDF успішно завантажено в Airtable");
-            console.log("Upload result:", result);
+            console.log("✅ PDF успішно завантажено в Airtable");
+            window.close();
           } else {
-            console.error("Upload error:", result);
+            console.error("❌ Помилка при завантаженні:", result);
             alert("❌ Помилка при завантаженні PDF в Airtable");
           }
         } catch (error) {
-          console.error("Conversion or network error:", error);
+          console.error("❌ Помилка при конвертації або надсиланні:", error);
           alert("❌ Помилка при обробці або надсиланні PDF");
         }
       });

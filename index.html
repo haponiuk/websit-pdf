@@ -2,12 +2,12 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Генератор PDF</title>
+  <title>PDF з Airtable</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
   <style>
     body {
-      background: #f4f7fa;
+      background: #eef3f9;
       font-family: 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
@@ -15,142 +15,187 @@
       justify-content: center;
       min-height: 100vh;
       margin: 0;
+      padding: 20px;
     }
-
     h1 {
-      color: #2c3e50;
+      color: #1f2d3d;
       margin-bottom: 20px;
     }
-
     button {
-      background-color: #3498db;
+      background: linear-gradient(to right, #00b894, #00cec9);
       color: white;
       font-size: 16px;
-      padding: 12px 24px;
+      padding: 12px 30px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: background-color 0.3s ease;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
     }
-
     button:hover {
-      background-color: #2980b9;
+      background: linear-gradient(to right, #00cec9, #00b894);
+      transform: scale(1.03);
     }
   </style>
 </head>
 <body>
-  <h1>Генератор PDF-звіту</h1>
-  <button onclick="generatePDF()">Завантажити PDF</button>
+  <h1>Генерація PDF з Airtable</h1>
+  <button onclick="fetchDataAndGeneratePDF()">Завантажити PDF</button>
 
   <script>
+    const AIRTABLE_URL = "https://api.airtable.com/v0/appb9kpXcjPohEBOb/tblpUFOT7x2W0fY0K";
+    const AIRTABLE_TOKEN = "patSVQeGPoRidOMV8.01e768b6b4af945b39d27490b0fc25e0657225921016d4e0963741871e8a923f";
+
     function getQueryParam(name) {
       const params = new URLSearchParams(window.location.search);
       return params.get(name) || 'Документ';
     }
 
-    function generatePDF() {
-      const title = getQueryParam('title');
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result); // це вже data:application/pdf;base64,...
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
 
-      const headerStyle = {
-        fillColor: '#2c3e50',
-        color: 'white',
-        bold: true,
-        fontSize: 13,
-        alignment: 'center',
-        margin: [0, 5, 0, 5]
-      };
-
-      const rowStyle = (rowIndex) => ({
-        fillColor: rowIndex % 2 === 0 ? '#ecf0f1' : null,
-        margin: [0, 4, 0, 4]
+    async function fetchDataAndGeneratePDF() {
+      const response = await fetch(AIRTABLE_URL, {
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_TOKEN}`
+        }
       });
 
+      const data = await response.json();
+      const records = data.records;
+      const title = getQueryParam('title');
+
+      const tableBody = [
+        [
+          { text: 'Invoice ID', style: 'tableHeader' },
+          { text: 'Email', style: 'tableHeader' },
+          { text: 'Date', style: 'tableHeader' },
+          { text: 'Total', style: 'tableHeader' }
+        ],
+        ...records.map((rec, i) => {
+          const fields = rec.fields;
+          const rowColor = i % 2 === 0 ? '#f0f8ff' : null;
+          return [
+            { text: fields['Invoice ID'] || '', fillColor: rowColor },
+            { text: fields['Email'] || '', fillColor: rowColor },
+            { text: fields['Date'] || '', fillColor: rowColor },
+            { text: fields['Total']?.toString() || '', fillColor: rowColor }
+          ];
+        })
+      ];
+
       const docDefinition = {
+        header: {
+          columns: [
+            { text: '', width: '*' },
+            {
+              text: 'QuitCode',
+              alignment: 'right',
+              color: '#00b894',
+              fontSize: 16,
+              bold: true,
+              margin: [0, 10, 10, 0]
+            }
+          ]
+        },
         content: [
           {
             text: title,
             style: 'header',
-            margin: [0, 0, 0, 20]
+            margin: [0, 0, 0, 10]
           },
-
-          { text: 'Перша таблиця', style: 'subheader' },
+          {
+            text: 'Інвойси з Airtable:',
+            style: 'subheader',
+            margin: [0, 0, 0, 10]
+          },
           {
             table: {
               headerRows: 1,
-              widths: ['*', '*', '*'],
-              body: [
-                [
-                  { text: 'Колонка 1', style: 'tableHeader' },
-                  { text: 'Колонка 2', style: 'tableHeader' },
-                  { text: 'Колонка 3', style: 'tableHeader' }
-                ],
-                ...[
-                  ['Значення 1', 'Значення 2', 'Значення 3'],
-                  ['Ще одне', 'Щось тут', 'І тут'],
-                  ['Третій рядок', 'Інфо', 'Більше даних']
-                ].map((row, i) =>
-                  row.map(cell => ({ text: cell, ...rowStyle(i) }))
-                )
-              ]
+              widths: ['*', '*', 'auto', 'auto'],
+              body: tableBody
             },
             layout: {
-              fillColor: (rowIndex) => rowIndex === 0 ? '#2c3e50' : rowIndex % 2 === 0 ? '#ecf0f1' : null,
-              textColor: (rowIndex) => rowIndex === 0 ? 'white' : 'black'
-            },
-            margin: [0, 10, 0, 20]
-          },
-
-          { text: 'Друга таблиця', style: 'subheader' },
-          {
-            table: {
-              headerRows: 1,
-              widths: ['auto', '*'],
-              body: [
-                [
-                  { text: 'Назва', style: 'tableHeader' },
-                  { text: 'Значення', style: 'tableHeader' }
-                ],
-                ...[
-                  ['Вік', '37'],
-                  ['Місто', 'Київ'],
-                  ['Професія', 'Фахівець з автоматизації']
-                ].map((row, i) =>
-                  row.map(cell => ({ text: cell, ...rowStyle(i) }))
-                )
-              ]
-            },
-            layout: 'lightHorizontalLines'
+              fillColor: (rowIndex) => rowIndex === 0 ? '#2d3436' : null,
+              textColor: (rowIndex) => rowIndex === 0 ? 'white' : 'black',
+              hLineColor: () => '#ccc',
+              vLineColor: () => '#ccc',
+              hLineWidth: () => 0.8,
+              vLineWidth: () => 0.8
+            }
           }
         ],
         styles: {
           header: {
-            fontSize: 24,
+            fontSize: 22,
             bold: true,
-            color: '#2c3e50',
-            alignment: 'center'
+            alignment: 'center',
+            color: '#2d3436'
           },
           subheader: {
-            fontSize: 16,
-            bold: true,
-            color: '#34495e',
-            margin: [0, 10, 0, 8]
+            fontSize: 14,
+            color: '#636e72'
           },
           tableHeader: {
             bold: true,
             fontSize: 13,
             color: 'white',
-            fillColor: '#2c3e50',
-            alignment: 'center'
+            fillColor: '#2d3436',
+            alignment: 'center',
+            margin: [0, 5, 0, 5]
           }
         },
         defaultStyle: {
-          fontSize: 12
+          fontSize: 11
         },
-        pageMargins: [40, 60, 40, 60]
+        pageMargins: [40, 80, 40, 60]
       };
 
-      pdfMake.createPdf(docDefinition).download(`${title}.pdf`);
+      // PDF → Blob → Base64 → POST to Airtable
+      pdfMake.createPdf(docDefinition).getBlob(async (blob) => {
+        try {
+          const base64data = await blobToBase64(blob); // вже у форматі "data:application/pdf;base64,..."
+
+          const baseId = "appb9kpXcjPohEBOb";
+          const recordId = "rec9ynVbWxAwpnOlV";
+          const fieldName = "Invoice PDF";
+          const uploadUrl = `https://content.airtable.com/v0/${baseId}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+
+          const payload = {
+            contentType: "application/pdf",
+            file: base64data,
+            filename: `${title}.pdf`
+          };
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const result = await uploadResponse.json();
+
+          if (uploadResponse.ok) {
+            alert("📎 PDF успішно завантажено в Airtable");
+            console.log("Upload result:", result);
+          } else {
+            console.error("Upload error:", result);
+            alert("❌ Помилка при завантаженні PDF в Airtable");
+          }
+        } catch (error) {
+          console.error("Conversion or network error:", error);
+          alert("❌ Помилка при обробці або надсиланні PDF");
+        }
+      });
     }
   </script>
 </body>
